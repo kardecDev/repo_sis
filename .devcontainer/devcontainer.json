@@ -1,0 +1,41 @@
+{
+    "name": "sistema_sis",
+    "dockerComposeFile": [
+        "../compose.yaml",
+        "docker-compose.yml"
+    ],
+    "service": "sistema_sis",
+    "workspaceFolder": "/app",
+	
+    "customizations": {
+		"runArgs": [
+            "--privileged",
+            
+        ],
+        "vscode": {
+            "extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+                "davidanson.vscode-markdownlint",
+                "ms-azuretools.vscode-docker", // Docker integration and linting
+                "shardulm94.trailing-spaces", // Show trailing spaces
+				"dart-code.dart-code",
+				"dart-code.flutter" 	
+            ],
+            "settings": {
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+                "terminal.integrated.defaultProfile.linux": "zsh"
+
+                }
+            //     ,"remote.extensionKind": {
+            //         "ms-azuretools.vscode-docker": "workspace"
+            // }
+        }
+    }
+    ,"forwardPorts": [
+        8051
+    ]
+    ,"remoteUser": "vscode"
+    ,"features": {}
+}

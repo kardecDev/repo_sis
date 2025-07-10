@@ -1,0 +1,13 @@
+services:
+  sistema_sis:
+      build:
+        context: .
+        dockerfile: .devcontainer/Dockerfile.dev
+      volumes:
+        - .:/app:cached
+      user: "1001:1001"
+      ports:
+        - "8051:8051"
+      environment:
+        - HOME=/home/vscode
+      command: /bin/bash -c "tail -f /dev/null" 

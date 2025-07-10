@@ -1,0 +1,27 @@
+FROM python:3.10-slim
+#Definição do usuario
+ARG USERNAME=vscode
+ARG USER_UID=1001
+ARG USER_GID=$USER_UID
+# Create the user
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+USER $USERNAME
+
+RUN sudo apt-get update \
+    && sudo apt-get install -y zsh \
+    && sudo apt-get install -y git 
+RUN sudo chsh -s /usr/bin/zsh
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+ENV PATH="/home/vscode/.local/bin:${PATH}"
+#Configuração de diretorio e porta
+WORKDIR /app
+EXPOSE 8051
+# Pip dependencies
+RUN pip install --upgrade pip
+COPY ./requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt

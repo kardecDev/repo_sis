@@ -1,0 +1,33 @@
+
+services:
+  database:
+    container_name: app_store_db
+    image: postgres:14.5
+    environment:
+      POSTGRES_HOST: localhost
+      POSTGRES_PASSWORD: app123
+      POSTGRES_USER: app_user
+      POSTGRES_DB: app_db
+      #PG_DATA: /var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    volumes:
+      - app_vol:/var/lib/postgresql/data
+    networks:
+      - app_net
+  app_store:
+    container_name: app_store
+    depends_on:
+      - database
+    build:
+      context: ./src
+      dockerfile: ./Dockerfile
+    ports:
+      - 8051:8051
+    networks:
+      - app_net
+networks:
+  app_net:
+    driver: bridge
+volumes:
+  app_vol:
