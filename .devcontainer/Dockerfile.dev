@@ -14,13 +14,45 @@ USER $USERNAME
 
 RUN sudo apt-get update \
     && sudo apt-get install -y zsh \
-    && sudo apt-get install -y git 
+    && sudo apt-get install -y git \
+    && sudo apt-get install -y curl \ 
+    #Dependencias do pyenv
+    && apt-get install -y build-essential \
+    && apt-get install -y libssl-dev \
+    && apt-get install -y zlib1g-dev \
+    && apt-get install -y libbz2-dev \
+    && apt-get install -y libreadline-dev \
+    && apt-get install -y libsqlite3-dev \
+    && apt-get install -y wget \
+    && apt-get install -y llvm \
+    && apt-get install -y gettext \
+    && apt-get install -y libncurses-dev \
+    && apt-get install -y tk-dev \
+    && apt-get install -y tcl-dev \
+    && apt-get install -y blt-dev \
+    && apt-get install -y libgdbm-dev \
+    && apt-get install -y python-dev-is-python3 \
+    && apt-get install -y aria2 \
+    && apt-get install -y vim \
+    && apt-get install -y libnss3-tools \
+    && apt-get install -y python3-venv \
+    && apt-get install -y liblzma-dev \
+    && apt-get install -y libpq-dev
+
 RUN sudo chsh -s /usr/bin/zsh
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+RUN curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | zsh
 ENV PATH="/home/vscode/.local/bin:${PATH}"
+ENV PYENV_ROOT="/home/vscode/.pyenv"
+RUN export PYENV_ROOT="$HOME/.pyenv"
+RUN [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+RUN eval "$(pyenv init - zsh)"
+
+RUN curl -sSL https://install.python-poetry.org | python3 -
 #Configuração de diretorio e porta
 WORKDIR /app
 EXPOSE 8051
+
 # Pip dependencies
 RUN pip install --upgrade pip
 COPY ./requirements.txt /app/requirements.txt

@@ -1,7 +1,7 @@
 
 services:
   database:
-    container_name: app_store_db
+    container_name: sistema_sis_db
     image: postgres:14.5
     environment:
       POSTGRES_HOST: localhost
@@ -15,8 +15,8 @@ services:
       - app_vol:/var/lib/postgresql/data
     networks:
       - app_net
-  app_store:
-    container_name: app_store
+  sistema_sis:
+    container_name: sistema_sis
     depends_on:
       - database
     build:

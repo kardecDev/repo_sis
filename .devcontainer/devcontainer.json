@@ -9,7 +9,7 @@
 	
     "customizations": {
 		"runArgs": [
-            "--privileged",
+            "--privileged"
             
         ],
         "vscode": {
