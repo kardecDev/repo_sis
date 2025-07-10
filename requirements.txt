@@ -1,10 +1,15 @@
-fastapi==0.115.14
-fastapi-cli==0.0.7
-uvicorn==0.35.0
-uvloop==0.21.0
-pytest==8.4.1
-pytest-asyncio==1.0.0
-pydantic==2.11.7
-pydantic_core==2.33.2
-ipython==8.16.0
-ipython-genutils==0.2.0
+# requirements.txt
+fastapi==0.104.1
+uvicorn==0.24.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+bcrypt==4.1.1
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+pydantic==2.5.0
+pydantic-settings==2.1.0
+redis==5.0.1
+slowapi==0.1.9
+passlib==1.7.4
+email-validator==2.1.0
