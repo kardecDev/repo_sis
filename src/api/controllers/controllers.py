@@ -2,13 +2,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from redis import aioredis
+
+from container import get_db_session, get_auth_service
 from domain.services import AuthService
-from infrastructure.repositories import PostgresUserRepository, PostgresLoginAttemptRepository
-from infrastructure.security.password_service import BcryptPasswordService
-from infrastructure.security.token_service import JWTTokenService
-from infrastructure.security.rate_limiter import RedisRateLimiter
-from api.schemas import (
+from schemas import (
     UserRegisterRequest, 
     UserLoginRequest, 
     TokenResponse, 
@@ -17,35 +14,17 @@ from api.schemas import (
     ErrorResponse
 )
 
-# Import or create redis_client (example using aioredis)
-
-redis_client = aioredis.from_url("redis://localhost")  # Update with your Redis config
-
 router = APIRouter()
 security = HTTPBearer()
 
-# Dependency injection (simplified - should be configured properly)
-async def get_auth_service(session: AsyncSession) -> AuthService:
-    user_repo = PostgresUserRepository(session)
-    login_attempt_repo = PostgresLoginAttemptRepository(session)
-    password_service = BcryptPasswordService()
-    token_service = JWTTokenService("your-secret-key-here")  # Should be from config
-    rate_limiter = RedisRateLimiter(redis_client)  # Should be injected
-    
-    return AuthService(
-        user_repo,
-        login_attempt_repo,
-        password_service,
-        token_service,
-        rate_limiter
-    )
-
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: UserRegisterRequest,
-    auth_service: AuthService = Depends(get_auth_service)
+    session: AsyncSession = Depends(get_db_session)
 ):
+    """Register a new user with secure password validation"""
     try:
+        auth_service = await get_auth_service(session)
         user = await auth_service.register_user(
             request.username,
             request.email,
@@ -64,74 +43,121 @@ async def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed"
+        )
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: UserLoginRequest,
     http_request: Request,
-    auth_service: AuthService = Depends(get_auth_service)
+    session: AsyncSession = Depends(get_db_session)
 ):
+    """Authenticate user and return JWT tokens"""
     ip_address = http_request.client.host
     user_agent = http_request.headers.get("user-agent")
     
-    token, message = await auth_service.authenticate_user(
-        request.username,
-        request.password,
-        ip_address,
-        user_agent
-    )
-    
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=message
+    try:
+        auth_service = await get_auth_service(session)
+        token, message = await auth_service.authenticate_user(
+            request.username,
+            request.password,
+            ip_address,
+            user_agent
         )
-    
-    return TokenResponse(
-        access_token=token.access_token,
-        refresh_token=token.refresh_token,
-        token_type=token.token_type,
-        expires_in=token.expires_in
-    )
+        
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=message,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        return TokenResponse(
+            access_token=token.access_token,
+            refresh_token=token.refresh_token,
+            token_type=token.token_type,
+            expires_in=token.expires_in
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication failed"
+        )
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     request: RefreshTokenRequest,
-    auth_service: AuthService = Depends(get_auth_service)
+    session: AsyncSession = Depends(get_db_session)
 ):
-    token = await auth_service.refresh_token(request.refresh_token)
-    
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+    """Refresh access token using refresh token"""
+    try:
+        auth_service = await get_auth_service(session)
+        token = await auth_service.refresh_token(request.refresh_token)
+        
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        return TokenResponse(
+            access_token=token.access_token,
+            refresh_token=token.refresh_token,
+            token_type=token.token_type,
+            expires_in=token.expires_in
         )
-    
-    return TokenResponse(
-        access_token=token.access_token,
-        refresh_token=token.refresh_token,
-        token_type=token.token_type,
-        expires_in=token.expires_in
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Token refresh failed"
+        )
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    auth_service: AuthService = Depends(get_auth_service)
+    session: AsyncSession = Depends(get_db_session)
 ):
-    user = await auth_service.get_current_user(credentials.credentials)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+    """Get current authenticated user information"""
+    try:
+        auth_service = await get_auth_service(session)
+        user = await auth_service.get_current_user(credentials.credentials)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        return UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            is_active=user.is_active,
+            last_login=user.last_login,
+            created_at=user.created_at
         )
-    
-    return UserResponse(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        is_active=user.is_active,
-        last_login=user.last_login,
-        created_at=user.created_at
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get user information"
+        )
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Logout user (client-side token invalidation)"""
+    # In a production system, you would add the token to a blacklist
+    # For now, we just return success as the client should discard the token
+    return {"message": "Successfully logged out"}
